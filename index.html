@@ -443,7 +443,7 @@ body { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial,
     </section>
   </div>
 </div>
-<div class="nav-hint">按 ← / → / 空格 切换幻灯片，按 F 全屏</div>
+<div class="nav-hint">翻页笔 / ← / → / 空格 / Enter 切换幻灯片，左键下一页，右键上一页，按 F 全屏</div>
 <div class="progress"><span id="progressBar"></span></div>
 <script data-cfasync="false">
 (function () {
@@ -511,21 +511,38 @@ body { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial,
 
     document.addEventListener('keydown', function (e) {
       const key = e.key || '';
-      if (key === 'ArrowRight' || key === 'PageDown' || key === ' ') {
+      const code = e.code || '';
+      const keyCode = e.keyCode || e.which || 0;
+
+      // 兼容常见 PPT 翻页笔：多数翻页笔本质上会模拟键盘按键。
+      // 下一页：PageDown / ArrowRight / Space / Enter / N
+      // 上一页：PageUp / ArrowLeft / Backspace / P
+      const nextKeys = ['ArrowRight', 'PageDown', ' ', 'Spacebar', 'Enter', 'N', 'n'];
+      const nextCodes = ['ArrowRight', 'PageDown', 'Space', 'Enter', 'NumpadEnter', 'KeyN'];
+      const nextKeyCodes = [13, 32, 34, 39];
+
+      const prevKeys = ['ArrowLeft', 'PageUp', 'Backspace', 'P', 'p'];
+      const prevCodes = ['ArrowLeft', 'PageUp', 'Backspace', 'KeyP'];
+      const prevKeyCodes = [8, 33, 37];
+
+      if (nextKeys.includes(key) || nextCodes.includes(code) || nextKeyCodes.includes(keyCode)) {
         e.preventDefault();
         next();
-      } else if (key === 'ArrowLeft' || key === 'PageUp') {
+      } else if (prevKeys.includes(key) || prevCodes.includes(code) || prevKeyCodes.includes(keyCode)) {
         e.preventDefault();
         prev();
-      } else if (key === 'Home') {
+      } else if (key === 'Home' || code === 'Home' || keyCode === 36) {
         e.preventDefault();
         show(0, true);
-      } else if (key === 'End') {
+      } else if (key === 'End' || code === 'End' || keyCode === 35) {
         e.preventDefault();
         show(slides.length - 1, true);
-      } else if (key.toLowerCase() === 'f') {
+      } else if (key.toLowerCase() === 'f' || code === 'KeyF') {
+        e.preventDefault();
         if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
         else document.exitFullscreen?.();
+      } else if (key === 'Escape' || code === 'Escape' || keyCode === 27) {
+        // 不拦截 Escape，交给浏览器退出全屏。
       }
     }, false);
 
@@ -549,6 +566,27 @@ body { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial,
 
     resize();
     fromHash();
+
+let hasEnteredFullscreen = false;
+
+// 左键点击：第一次自动全屏 + 下一页
+document.addEventListener('click', function (e) {
+  if (e.button !== 0) return;
+
+  if (!hasEnteredFullscreen) {
+    document.documentElement.requestFullscreen?.();
+    hasEnteredFullscreen = true;
+  }
+
+  next();
+});
+
+// 右键：上一页
+document.addEventListener('contextmenu', function (e) {
+  e.preventDefault();
+  prev();
+});
+
     window.setTimeout(resize, 120);
   });
 })();
