@@ -25,15 +25,35 @@ html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#0b0
 body { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; color:var(--ink); }
 #app { width:100vw; height:100vh; display:grid; place-items:center; background: radial-gradient(circle at 20% 15%, #29334e 0%, #0b0f1a 52%, #05070d 100%); }
 #frame { width:1600px; height:900px; transform-origin:center center; position:relative; }
-。slide { position:absolute; inset:0; width:1600px; height:900px; display:none; overflow:hidden; background:var(--paper); box-shadow:0 18px 70px rgba(0,0,0,.5); }
-。slide.active { display:block; }
-。bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-。mask-dark { position:absolute; inset:0; background:linear-gradient(90deg, rgba(11,15,26,.88), rgba(11,15,26,.48) 54%, rgba(139,30,45,.42)); }
-。mask-light { position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,248,237,.92), rgba(255,248,237,.72)); }
-。topline { position:absolute; top:38px; left:62px; right:62px; height:1px; background:linear-gradient(90deg, rgba(139,30,45,.9), rgba(217,164,65,.1)); }
-。slide-no { position:absolute; right:50px; bottom:34px; font-size:17px; letter-spacing:.14em; color:rgba(23,32,51,.58); z-index:20; }
-。dark .slide-no { color:rgba(255,255,255,.65); }
-。source { position:absolute; left:54px; bottom:32px; max-width:1050px; font-size:13px; color:rgba(23,32,51,.48); z-index:20; }
+/* Cloudflare Pages 稳定版：页面始终绝对定位，不依赖 display:none/block。 */
+.slide {
+  position:absolute;
+  inset:0;
+  width:1600px;
+  height:900px;
+  display:block;
+  overflow:hidden;
+  background:var(--paper);
+  box-shadow:0 18px 70px rgba(0,0,0,.5);
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  z-index:0;
+  transform:translate3d(0,0,0);
+}
+.slide.active {
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  z-index:2;
+}
+.bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.mask-dark { position:absolute; inset:0; background:linear-gradient(90deg, rgba(11,15,26,.88), rgba(11,15,26,.48) 54%, rgba(139,30,45,.42)); }
+.mask-light { position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,248,237,.92), rgba(255,248,237,.72)); }
+.topline { position:absolute; top:38px; left:62px; right:62px; height:1px; background:linear-gradient(90deg, rgba(139,30,45,.9), rgba(217,164,65,.1)); }
+.slide-no { position:absolute; right:50px; bottom:34px; font-size:17px; letter-spacing:.14em; color:rgba(23,32,51,.58); z-index:20; }
+.dark .slide-no { color:rgba(255,255,255,.65); }
+.source { position:absolute; left:54px; bottom:32px; max-width:1050px; font-size:13px; color:rgba(23,32,51,.48); z-index:20; }
 .dark .source { color:rgba(255,255,255,.56); }
 .kicker { font-size:26px; letter-spacing:.18em; color:var(--red); font-weight:700; }
 .title { font-size:58px; line-height:1.08; margin:0; letter-spacing:-.02em; font-weight:800; }
@@ -240,14 +260,7 @@ body { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial,
 .s10 .photo { object-fit: contain; object-position:right center; background:#f5efe7; }
 .s11 .student { object-fit: cover; object-position:center center; }
 
-@page { size: 1600px 900px; margin: 0; }
-@media print {
-  html, body { overflow:visible; background:#fff; }
-  #app { display:block; height:auto; background:#fff; }
-  #frame { transform:none !important; width:1600px; height:auto; margin:0; }
-  .slide { display:block !important; position:relative; page-break-after:always; box-shadow:none; }
-  .nav-hint, .progress { display:none; }
-}
+/* Print-specific rules removed in stable Cloudflare build to avoid accidental all-slide rendering. */
 </style>
 
 <!-- Base64 images replaced with external image links to reduce file size. See data-img-replacement / data-source-page attributes on each img tag. -->
@@ -432,40 +445,112 @@ body { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial,
 </div>
 <div class="nav-hint">按 ← / → / 空格 切换幻灯片，按 F 全屏</div>
 <div class="progress"><span id="progressBar"></span></div>
-<script>
-(function() {
-  const slides = Array.from(document.querySelectorAll('.slide'));
-  const frame = document.getElementById('frame');
-  const bar = document.getElementById('progressBar');
-  let current = 0;
-  function resize() {
-    const scale = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
-    frame.style.transform = 'scale(' + scale + ')';
-  }
-  function show(i) {
-    current = Math.max(0, Math.min(slides.length - 1, i));
-    slides.forEach((s, idx) => s.classList.toggle('active', idx === current));
-    bar.style.width = ((current + 1) / slides.length * 100) + '%';
-    location.hash = 'slide-' + (current + 1);
-  }
-  function fromHash() {
-    const m = location.hash.match(/slide-(\d+)/);
-    if (m) show(parseInt(m[1], 10) - 1);
-    else show(0);
-  }
-  window.addEventListener('resize', resize);
-  window.addEventListener('hashchange', fromHash);
-  document.addEventListener('keydown', function(e) {
-    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); show(current + 1); }
-    if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); show(current - 1); }
-    if (e.key === 'Home') show(0);
-    if (e.key === 'End') show(slides.length - 1);
-    if (e.key.toLowerCase() === 'f') {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-      else document.exitFullscreen?.();
+<script data-cfasync="false">
+(function () {
+  'use strict';
+
+  function ready(fn) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn, { once: true });
+    } else {
+      fn();
     }
+  }
+
+  ready(function () {
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const frame = document.getElementById('frame');
+    const bar = document.getElementById('progressBar');
+    let current = 0;
+
+    if (!slides.length || !frame) return;
+
+    function resize() {
+      const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+      const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+      const scale = Math.min(vw / 1600, vh / 900);
+      frame.style.transform = 'scale(' + scale + ')';
+    }
+
+    function updateHash(index) {
+      const nextHash = '#slide-' + (index + 1);
+      if (window.location.hash !== nextHash && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', nextHash);
+      } else if (window.location.hash !== nextHash) {
+        window.location.hash = nextHash;
+      }
+    }
+
+    function show(index, syncHash) {
+      const next = Math.max(0, Math.min(slides.length - 1, Number(index) || 0));
+      current = next;
+
+      for (let i = 0; i < slides.length; i += 1) {
+        const active = i === current;
+        slides[i].classList.toggle('active', active);
+        slides[i].setAttribute('aria-hidden', active ? 'false' : 'true');
+      }
+
+      if (bar) {
+        bar.style.width = ((current + 1) / slides.length * 100) + '%';
+      }
+      if (syncHash !== false) updateHash(current);
+    }
+
+    function fromHash() {
+      const match = String(window.location.hash || '').match(/slide-(\d+)/i);
+      show(match ? parseInt(match[1], 10) - 1 : 0, false);
+    }
+
+    function next() { show(current + 1, true); }
+    function prev() { show(current - 1, true); }
+
+    window.addEventListener('resize', resize, { passive: true });
+    window.addEventListener('orientationchange', resize, { passive: true });
+    window.addEventListener('hashchange', fromHash, false);
+
+    document.addEventListener('keydown', function (e) {
+      const key = e.key || '';
+      if (key === 'ArrowRight' || key === 'PageDown' || key === ' ') {
+        e.preventDefault();
+        next();
+      } else if (key === 'ArrowLeft' || key === 'PageUp') {
+        e.preventDefault();
+        prev();
+      } else if (key === 'Home') {
+        e.preventDefault();
+        show(0, true);
+      } else if (key === 'End') {
+        e.preventDefault();
+        show(slides.length - 1, true);
+      } else if (key.toLowerCase() === 'f') {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      }
+    }, false);
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    document.addEventListener('touchstart', function (e) {
+      if (!e.changedTouches || !e.changedTouches.length) return;
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function (e) {
+      if (!e.changedTouches || !e.changedTouches.length) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx < 0) next();
+        else prev();
+      }
+    }, { passive: true });
+
+    resize();
+    fromHash();
+    window.setTimeout(resize, 120);
   });
-  resize(); fromHash();
 })();
 </script>
 </body>
